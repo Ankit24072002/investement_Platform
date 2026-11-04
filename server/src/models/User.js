@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
@@ -17,12 +18,12 @@ const userSchema = new mongoose.Schema(
     mobile: {
       type: String,
       trim: true,
-      default: '',
+      default: undefined,
     },
     mobileNumber: {
       type: String,
       trim: true,
-      default: '',
+      default: undefined,
     },
     password: {
       type: String,
@@ -78,6 +79,20 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ referredBy: 1, accountStatus: 1 });
+userSchema.index(
+  { mobile: 1 },
+  { unique: true, partialFilterExpression: { mobile: { $type: 'string', $gt: '' } } }
+);
+userSchema.index(
+  { mobileNumber: 1 },
+  { unique: true, partialFilterExpression: { mobileNumber: { $type: 'string', $gt: '' } } }
+);
+
+userSchema.pre('save', async function hashPassword() {
+  if (this.isModified('password') && !/^\$2[aby]\$/.test(this.password)) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+});
 
 userSchema.pre('save', function syncFinancialFields(next) {
   const totalROIValue = Number(this.totalROIEarned || this.totalROI || 0);

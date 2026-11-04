@@ -1,10 +1,11 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getJwtSecret } = require('../config/security');
 const { generateReferralCode, validateReferralTarget } = require('../services/businessLogic');
 
 const createToken = (userId) =>
-  jwt.sign({ id: userId }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+  jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: '7d' });
 
 const sanitizeUser = (user) => ({
   id: user._id,
@@ -27,8 +28,8 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Full name, email, mobile number, and password are required.' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
@@ -48,21 +49,28 @@ const registerUser = async (req, res) => {
       }
 
       const referrer = await User.findOne({ referralCode: normalizedReferral });
-      if (referrer) {
-        try {
-          await validateReferralTarget(referrer._id, null);
-          referredBy = referrer._id;
-        } catch (error) {
-          return res.status(400).json({ success: false, message: error.message || 'Invalid referral code.' });
-        }
+      if (!referrer) {
+        return res.status(400).json({ success: false, message: 'Invalid referral code.' });
       }
+      try {
+        await validateReferralTarget(referrer._id, null);
+        referredBy = referrer._id;
+      } catch (error) {
+        return res.status(400).json({ success: false, message: error.message || 'Invalid referral code.' });
+      }
+    }
+
+    const normalizedMobile = String(mobileNumber || mobile).trim();
+    const existingMobile = await User.exists({ mobileNumber: normalizedMobile });
+    if (existingMobile) {
+      return res.status(409).json({ success: false, message: 'User with this mobile number already exists.' });
     }
 
     const user = await User.create({
       fullName: String(fullName).trim(),
       email: normalizedEmail,
-      mobileNumber: mobileNumber || mobile,
-      mobile: mobileNumber || mobile,
+      mobileNumber: normalizedMobile,
+      mobile: normalizedMobile,
       password: hashedPassword,
       referralCode: generatedCode,
       referredBy,
@@ -79,6 +87,17 @@ const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error.code === 11000) {
+      if (error.keyPattern?.mobileNumber || error.keyValue?.mobileNumber) {
+        return res.status(409).json({ success: false, message: 'User with this mobile number already exists.' });
+      }
+      if (error.keyPattern?.email || error.keyValue?.email) {
+        return res.status(409).json({ success: false, message: 'User with this email already exists.' });
+      }
+      if (error.keyPattern?.referralCode || error.keyValue?.referralCode) {
+        return res.status(409).json({ success: false, message: 'Unable to reserve a referral code; please retry registration.' });
+      }
+    }
     return res.status(500).json({ success: false, message: error.message || 'Unable to register user.' });
   }
 };
@@ -100,6 +119,10 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    }
+
+    if (user.accountStatus !== 'active') {
+      return res.status(403).json({ success: false, message: 'This account is not active.' });
     }
 
     return res.status(200).json({

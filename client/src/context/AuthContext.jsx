@@ -14,6 +14,16 @@ export function AuthProvider({ children }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('nexachain-theme') || 'dark');
 
   useEffect(() => {
+    const handleUnauthorized = () => {
+      setToken('');
+      setUser(null);
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
+  useEffect(() => {
     if (token) {
       localStorage.setItem('token', token);
     } else {
@@ -31,7 +41,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     localStorage.setItem('nexachain-theme', theme);
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   const value = useMemo(

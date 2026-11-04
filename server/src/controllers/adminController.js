@@ -12,9 +12,10 @@ const getUsers = async (req, res) => {
     const query = {};
 
     if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: escapedSearch, $options: 'i' } },
+        { email: { $regex: escapedSearch, $options: 'i' } },
       ];
     }
 
@@ -50,6 +51,9 @@ const getInvestments = async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const status = String(req.query.status || '').trim();
+    const sortFields = new Set(['createdAt', 'startDate', 'endDate', 'amount', 'status']);
+    const sortBy = sortFields.has(String(req.query.sortBy || 'createdAt')) ? String(req.query.sortBy || 'createdAt') : 'createdAt';
+    const sortOrder = String(req.query.sortOrder || 'desc') === 'asc' ? 1 : -1;
     const query = {};
 
     if (status) {
@@ -57,7 +61,11 @@ const getInvestments = async (req, res) => {
     }
 
     const [items, total] = await Promise.all([
-      Investment.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+      Investment.find(query)
+        .populate('userId', 'fullName email')
+        .sort({ [sortBy]: sortOrder })
+        .skip((page - 1) * limit)
+        .limit(limit),
       Investment.countDocuments(query),
     ]);
 
@@ -88,7 +96,7 @@ const runManualROI = async (req, res) => {
       data: { processed },
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message || 'Unable to process manual ROI run.' });
+    return res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Unable to process manual ROI run.' });
   }
 };
 

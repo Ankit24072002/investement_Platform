@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeDollarSign, CalendarDays, Percent } from 'lucide-react';
 import api from '../services/api';
 import PageHeader from '../components/common/PageHeader';
 import SectionCard from '../components/common/SectionCard';
 
 const formatCurrency = (value) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(value || 0));
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(value || 0));
 
 export default function InvestmentDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [investment, setInvestment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,9 +19,8 @@ export default function InvestmentDetailsPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const { data } = await api.get('/investments');
-        const item = (data?.data?.items || data?.investments || []).find((row) => row._id === id) || null;
-        setInvestment(item);
+        const { data } = await api.get(`/investments/${id}`);
+        setInvestment(data?.data?.investment || null);
       } catch (err) {
         setError(err.response?.data?.message || 'Unable to load investment details.');
       } finally {
@@ -49,7 +49,7 @@ export default function InvestmentDetailsPage() {
         title="Investment details"
         subtitle={`#{${String(investment._id || '').slice(-6) || 'INV'}}`}
         action={
-          <button className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200">
+          <button type="button" onClick={() => navigate('/investments')} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200">
             <ArrowLeft size={16} /> Back
           </button>
         }

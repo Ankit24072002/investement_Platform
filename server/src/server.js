@@ -1,11 +1,15 @@
 require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { connectDB, ensureDefaultAdmin } = require('./config/db');
 const { startCronJobs } = require('./config/cron');
+const { assertRequiredConfiguration } = require('./config/security');
+const { assertTransactionSupport } = require('./services/businessLogic');
+const rejectMongoOperators = require('./middleware/rejectMongoOperators');
 const authRoutes = require('./routes/authRoutes');
 const investmentRoutes = require('./routes/investmentRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
@@ -18,7 +22,9 @@ const app = express();
 const DEFAULT_PORT = Number(process.env.PORT || 5000);
 
 const startServer = async (port = DEFAULT_PORT) => {
+  assertRequiredConfiguration();
   await connectDB();
+  assertTransactionSupport();
   await ensureDefaultAdmin();
   startCronJobs();
 
@@ -40,9 +46,14 @@ const startServer = async (port = DEFAULT_PORT) => {
 };
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL || '*', credentials: true }));
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
 app.use(express.json({ limit: '1mb' }));
-app.use(morgan('dev'));
+app.use(rejectMongoOperators);
+app.use(
+  morgan((tokens, req, res) =>
+    `${tokens.method(req, res)} ${req.path} ${tokens.status(req, res)} ${tokens['response-time'](req, res)} ms`
+  )
+);
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -54,7 +65,12 @@ app.use(
 );
 
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'Investment platform API is running.', data: { status: 'ok' } });
+  const databaseConnected = mongoose.connection.readyState === 1;
+  return res.status(databaseConnected ? 200 : 503).json({
+    success: databaseConnected,
+    message: databaseConnected ? 'Investment platform API is running.' : 'Database connection is unavailable.',
+    data: { status: databaseConnected ? 'ok' : 'degraded', databaseConnected },
+  });
 });
 
 app.use('/api/auth', authRoutes);

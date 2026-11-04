@@ -3,15 +3,20 @@ import { CreditCard, Wallet, TrendingUp } from 'lucide-react';
 import api from '../services/api';
 import PageHeader from '../components/common/PageHeader';
 import SectionCard from '../components/common/SectionCard';
+import PaginationControls from '../components/common/PaginationControls';
+
+const PAGE_SIZE = 20;
 
 const formatCurrency = (value) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(value || 0));
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(value || 0));
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
   useEffect(() => {
     const load = async () => {
@@ -19,10 +24,11 @@ export default function WalletPage() {
         setLoading(true);
         const [{ data: walletData }, { data: txData }] = await Promise.all([
           api.get('/wallet'),
-          api.get('/wallet/transactions'),
+          api.get(`/wallet/transactions?page=${page}&limit=${PAGE_SIZE}`),
         ]);
-        setWallet(walletData?.data || {});
+        setWallet(walletData?.data || null);
         setTransactions(txData?.data?.items || []);
+        setPagination(txData?.data?.pagination || { total: 0, totalPages: 1 });
       } catch (err) {
         setError(err.response?.data?.message || 'Unable to load wallet data.');
       } finally {
@@ -31,7 +37,7 @@ export default function WalletPage() {
     };
 
     load();
-  }, []);
+  }, [page]);
 
   if (loading) return <div className="h-48 animate-pulse rounded-3xl bg-slate-900/60" />;
 
@@ -40,17 +46,18 @@ export default function WalletPage() {
       <PageHeader title="Wallet" subtitle="Monitor available funds and transaction movement." />
 
       <div className="mb-6 grid gap-5 md:grid-cols-3">
-        <MetricCard label="Wallet balance" value={formatCurrency(wallet?.walletBalance || 0)} icon={<Wallet size={18} />} accent="blue" />
-        <MetricCard label="ROI earned" value={formatCurrency(wallet?.totalROIEarned || 0)} icon={<TrendingUp size={18} />} accent="emerald" />
-        <MetricCard label="Referral income" value={formatCurrency(wallet?.totalLevelIncomeEarned || 0)} icon={<CreditCard size={18} />} accent="violet" />
+        <MetricCard label="Wallet balance" value={wallet ? formatCurrency(wallet.walletBalance) : '—'} icon={<Wallet size={18} />} accent="blue" />
+        <MetricCard label="ROI earned" value={wallet ? formatCurrency(wallet.totalROIEarned) : '—'} icon={<TrendingUp size={18} />} accent="emerald" />
+        <MetricCard label="Referral income" value={wallet ? formatCurrency(wallet.totalLevelIncomeEarned) : '—'} icon={<CreditCard size={18} />} accent="violet" />
       </div>
 
       <SectionCard title="Wallet transactions" subtitle="Recent account activity">
         {error && <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</div>}
-        {transactions.length === 0 ? (
-          <div className="empty-panel">No wallet transactions yet.</div>
-        ) : (
-          <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-950/30">
+        {!error && (
+          transactions.length === 0 ? (
+            <div className="empty-panel">No wallet transactions yet.</div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-950/30">
             <table className="min-w-full text-left text-sm text-slate-200">
               <thead className="bg-slate-950/70 text-[10px] uppercase tracking-[0.18em] text-slate-400">
                 <tr>
@@ -73,7 +80,11 @@ export default function WalletPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          )
+        )}
+        {!loading && !error && (
+          <PaginationControls page={page} totalPages={pagination.totalPages} total={pagination.total} pageSize={PAGE_SIZE} onChange={setPage} />
         )}
       </SectionCard>
     </div>

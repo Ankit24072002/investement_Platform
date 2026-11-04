@@ -11,12 +11,13 @@ const investmentSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      default: null,
+      required: true,
+      index: true,
     },
     amount: {
       type: Number,
       required: true,
-      min: 0,
+      min: 0.01,
     },
     planName: {
       type: String,
@@ -45,6 +46,7 @@ const investmentSchema = new mongoose.Schema(
     },
     dailyROIPercentage: {
       type: Number,
+      required: true,
       min: 0,
       default: 0,
     },
@@ -70,10 +72,16 @@ const investmentSchema = new mongoose.Schema(
 investmentSchema.index({ userId: 1, status: 1 });
 investmentSchema.index({ endDate: 1, status: 1 });
 
-investmentSchema.pre('save', function syncInvestmentFields(next) {
+investmentSchema.pre('validate', function syncUserReferences() {
   if (!this.user && this.userId) {
     this.user = this.userId;
   }
+  if (!this.userId && this.user) {
+    this.userId = this.user;
+  }
+});
+
+investmentSchema.pre('save', function syncInvestmentFields(next) {
   if (!this.dailyROIPercentage && this.dailyROI) {
     this.dailyROIPercentage = this.dailyROI;
   }

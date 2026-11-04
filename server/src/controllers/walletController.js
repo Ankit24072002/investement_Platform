@@ -24,14 +24,21 @@ const getWalletTransactions = async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const type = String(req.query.type || '').trim();
+    const status = String(req.query.status || '').trim();
+    const sortFields = new Set(['createdAt', 'amount']);
+    const sortBy = sortFields.has(String(req.query.sortBy || 'createdAt')) ? String(req.query.sortBy || 'createdAt') : 'createdAt';
+    const sortOrder = String(req.query.sortOrder || 'desc') === 'asc' ? 1 : -1;
     const filter = { userId: req.user._id };
 
     if (type) {
       filter.transactionType = type;
     }
+    if (status) {
+      filter.status = status;
+    }
 
     const [items, total] = await Promise.all([
-      WalletTransaction.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+      WalletTransaction.find(filter).sort({ [sortBy]: sortOrder, _id: sortOrder }).skip((page - 1) * limit).limit(limit),
       WalletTransaction.countDocuments(filter),
     ]);
 

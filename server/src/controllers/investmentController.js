@@ -1,44 +1,69 @@
+const mongoose = require('mongoose');
 const Investment = require('../models/Investment');
 const ROIHistory = require('../models/ROIHistory');
 const ReferralIncome = require('../models/ReferralIncome');
-const { awardReferralIncome, processDailyROI } = require('../services/businessLogic');
+const { awardReferralIncome, runInTransaction, roundMoney } = require('../services/businessLogic');
+const { getInvestmentPlans } = require('../config/investmentPlans');
+
+const getAvailablePlans = async (req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      message: 'Investment plans fetched successfully.',
+      data: { plans: getInvestmentPlans() },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Unable to load investment plans.' });
+  }
+};
 
 const createInvestment = async (req, res) => {
   try {
-    const { amount, planName, planDetails, startDate, endDate, dailyROI, dailyROIPercentage } = req.body;
-
-    if (!amount || !planDetails || !startDate || !endDate || !(dailyROI || dailyROIPercentage)) {
-      return res.status(400).json({ success: false, message: 'Amount, plan details, start date, end date, and daily ROI are required.' });
-    }
-
+    const { amount, planId } = req.body;
     const numberAmount = Number(amount);
-    const percent = Number(dailyROI || dailyROIPercentage);
-
-    if (numberAmount <= 0 || percent <= 0) {
-      return res.status(400).json({ success: false, message: 'Investment amount and daily ROI percentage must be greater than zero.' });
+    if (!Number.isFinite(numberAmount) || numberAmount <= 0 || roundMoney(numberAmount) !== numberAmount || !planId) {
+      return res.status(400).json({ success: false, message: 'A valid plan and amount with at most two decimal places are required.' });
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-      return res.status(400).json({ success: false, message: 'End date must be after the start date.' });
+    const plan = getInvestmentPlans().find((item) => item.id === String(planId));
+    if (!plan) {
+      return res.status(400).json({ success: false, message: 'The selected investment plan is unavailable.' });
     }
 
-    const investment = await Investment.create({
-      userId: req.user._id,
-      user: req.user._id,
-      amount: numberAmount,
-      planName: planName || planDetails,
-      planDetails,
-      startDate: start,
-      endDate: end,
-      dailyROI: percent,
-      dailyROIPercentage: percent,
-      status: 'active',
-      referralPayoutProcessed: false,
+    if (numberAmount < plan.minAmount || numberAmount > plan.maxAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Amount must be between ${plan.minAmount} and ${plan.maxAmount} for this plan.`,
+      });
+    }
+
+    const investment = await runInTransaction(async (session) => {
+      const startDate = new Date();
+      startDate.setUTCHours(0, 0, 0, 0);
+      const endDate = new Date(startDate);
+      endDate.setUTCDate(endDate.getUTCDate() + plan.durationDays - 1);
+      const [created] = await Investment.create(
+        [
+          {
+            userId: req.user._id,
+            user: req.user._id,
+            amount: numberAmount,
+            planName: plan.name,
+            planDetails: plan.description,
+            startDate,
+            endDate,
+            dailyROI: plan.dailyROIPercentage,
+            dailyROIPercentage: plan.dailyROIPercentage,
+            status: 'active',
+            referralPayoutProcessed: false,
+          },
+        ],
+        { session }
+      );
+
+      await awardReferralIncome(req.user._id, numberAmount, created._id, session);
+      return created;
     });
-
-    await awardReferralIncome(req.user._id, numberAmount, investment._id);
 
     return res.status(201).json({
       success: true,
@@ -46,12 +71,16 @@ const createInvestment = async (req, res) => {
       data: { investment },
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message || 'Unable to create investment.' });
+    return res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Unable to create investment.' });
   }
 };
 
 const getInvestmentById = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid investment identifier.' });
+    }
+
     const investment = await Investment.findOne({ _id: req.params.id, userId: req.user._id });
 
     if (!investment) {
@@ -73,7 +102,9 @@ const getInvestments = async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const status = String(req.query.status || '').trim();
-    const sortBy = String(req.query.sortBy || 'createdAt');
+    const sortFields = new Set(['createdAt', 'startDate', 'endDate', 'amount', 'status']);
+    const requestedSort = String(req.query.sortBy || 'createdAt');
+    const sortBy = sortFields.has(requestedSort) ? requestedSort : 'createdAt';
     const sortOrder = String(req.query.sortOrder || 'desc') === 'asc' ? 1 : -1;
     const filter = { userId: req.user._id };
 
@@ -125,13 +156,11 @@ const getReferralHistory = async (req, res) => {
   }
 };
 
-const triggerManualROI = async (req, res) => {
-  try {
-    const processed = await processDailyROI({ manualRun: true });
-    return res.status(200).json({ success: true, message: 'Daily ROI processed successfully.', data: { processed } });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message || 'Unable to process daily ROI.' });
-  }
+module.exports = {
+  createInvestment,
+  getAvailablePlans,
+  getInvestmentById,
+  getInvestments,
+  getROIHistory,
+  getReferralHistory,
 };
-
-module.exports = { createInvestment, getInvestmentById, getInvestments, getROIHistory, getReferralHistory, triggerManualROI };

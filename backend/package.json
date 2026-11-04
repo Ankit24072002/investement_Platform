@@ -4,8 +4,9 @@
   "private": true,
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "start": "npm --prefix ../server run start",
+    "dev": "npm --prefix ../server run dev",
+    "test": "npm --prefix ../server run test"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

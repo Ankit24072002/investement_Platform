@@ -1,6 +1,8 @@
 const express = require('express');
-const { getDashboard, getDashboardSummary, getROIChart, getEarningsBreakdown } = require('../controllers/dashboardController');
+const { query } = require('express-validator');
+const { getDashboard, getDashboardSummary, getROIChart, getEarningsBreakdown, getEarningsTrend } = require('../controllers/dashboardController');
 const { protect } = require('../middleware/authMiddleware');
+const validateRequest = require('../middleware/validateRequest');
 
 const router = express.Router();
 
@@ -9,5 +11,6 @@ router.get('/', getDashboard);
 router.get('/summary', getDashboardSummary);
 router.get('/roi-chart', getROIChart);
 router.get('/earnings', getEarningsBreakdown);
+router.get('/earnings-trend', query('days').optional().isInt({ min: 7, max: 90 }), validateRequest, getEarningsTrend);
 
 module.exports = router;

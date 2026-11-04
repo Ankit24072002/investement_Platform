@@ -7,7 +7,7 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <PageHeader title="Profile" subtitle="Manage your profile details and account summary." />
+      <PageHeader title="Profile" subtitle="Review your account details and referral information." />
 
       <div className="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
         <SectionCard title="Account" subtitle="Summary">
@@ -17,7 +17,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <div className="text-xl font-semibold text-white">{user?.fullName || 'Investor'}</div>
-              <div className="text-sm text-slate-400">{user?.email || 'investor@nexachain.ai'}</div>
+              <div className="text-sm text-slate-400">{user?.email || '—'}</div>
             </div>
           </div>
         </SectionCard>

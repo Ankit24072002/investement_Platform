@@ -2,9 +2,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { generateReferralCode } = require('../services/businessLogic');
+const { getJwtSecret } = require('../../../server/src/config/security');
 
 const createToken = (userId) =>
-  jwt.sign({ id: userId }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+  jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: '7d' });
 
 const registerUser = async (req, res) => {
   try {

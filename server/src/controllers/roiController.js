@@ -6,7 +6,11 @@ const getROIHistory = async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const filter = { userId: req.user._id };
     const [items, total] = await Promise.all([
-      ROIHistory.find(filter).sort({ date: -1 }).skip((page - 1) * limit).limit(limit),
+      ROIHistory.find(filter)
+        .populate('investmentId', 'planName planDetails amount')
+        .sort({ date: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
       ROIHistory.countDocuments(filter),
     ]);
 

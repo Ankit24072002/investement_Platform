@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const walletTransactionSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -53,6 +58,12 @@ const walletTransactionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+walletTransactionSchema.pre('save', function syncUserReference(next) {
+  if (!this.user && this.userId) this.user = this.userId;
+  if (!this.userId && this.user) this.userId = this.user;
+  next();
+});
 
 walletTransactionSchema.index({ userId: 1, transactionType: 1, createdAt: -1 });
 walletTransactionSchema.index({ referenceId: 1, transactionType: 1 }, { sparse: true });
