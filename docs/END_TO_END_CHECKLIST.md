@@ -6,7 +6,8 @@ This checklist covers the supported user flow across the React client, Express A
 
 - [ ] Configure `server/.env` with a MongoDB replica-set or sharded-cluster `MONGODB_URI`; financial writes require transaction support.
 - [ ] Configure `JWT_SECRET` with at least 32 non-placeholder characters.
-- [ ] Configure `CLIENT_ORIGIN`, `CRON_TIMEZONE`, investment plan terms, and referral commission levels. The assessment does not define investment terms or commission rates; `.env.example` values are development examples only.
+- [ ] Configure `CLIENT_URL` to the exact frontend origin (for example, `http://localhost:5173`), plus `CRON_TIMEZONE`, investment plan terms, and referral commission levels. The assessment does not define investment terms or commission rates; `.env.example` values are development examples only.
+- [ ] Use `CRON_TIMEZONE=UTC` for the intended daily ROI schedule. The scheduler runs at midnight in this timezone, and ROI eligibility/idempotency are calculated by UTC calendar date. If another scheduler timezone is selected, the job still processes according to the current UTC date; it does not switch ROI date boundaries to that timezone.
 - [ ] Configure `client/.env` with `VITE_API_URL` pointing to the backend API base URL (for example `http://localhost:5000/api`).
 - [ ] Start the backend from `server/` with `npm run dev`, then start the client from `client/` with `npm run dev`.
 - [ ] Confirm `GET /api/health` reports a connected database.

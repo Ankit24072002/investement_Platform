@@ -251,7 +251,7 @@ Wallet changes and their corresponding financial-history records are committed t
 
 ## Scheduler and idempotency
 
-The scheduler is implemented in [`server/src/config/cron.js`](./server/src/config/cron.js) and invokes the shared ROI business service. It is configured to run daily at **12:00 AM** in the configured scheduler timezone (`CRON_TIMEZONE`, then `TZ`, then UTC). ROI eligibility and duplicate prevention use UTC day boundaries, so configure and document timezone expectations deliberately in deployment.
+The scheduler is implemented in [`server/src/config/cron.js`](./server/src/config/cron.js) and invokes the shared ROI business service. The intended processing timezone is **UTC**: set `CRON_TIMEZONE=UTC` to run the job daily at **12:00 AM UTC**, matching the UTC calendar-day boundaries used for ROI eligibility and duplicate prevention. The scheduler can be configured with another timezone (`CRON_TIMEZONE`, then `TZ`, then UTC), but that only changes when the job fires; ROI eligibility and idempotency remain based on the UTC date.
 
 The ROI service uses both a database lock/lease to coordinate overlapping runs and per-investment/per-day idempotency to protect against retries or duplicate execution. Admins can also trigger a manual run through `POST /api/admin/roi/run`; it uses the same safeguards.
 
@@ -263,7 +263,7 @@ The assessment does not define financial terms or payment behavior. These implem
 2. **Referral commissions:** Production referral depth and percentages must be explicitly configured with `REFERRAL_MAX_LEVELS` and `REFERRAL_LEVELS`. Example percentages in `.env.example` are not assessment requirements.
 3. **Referral payout event:** Eligible referral payouts are initiated when an investment is created; the configured minimum eligible amount and level rules determine recipients.
 4. **No deposits or payment processor:** Creating an investment stores the investment record but does **not** debit the wallet. The assessment does not specify funding, withdrawals, or a payment integration.
-5. **Date handling:** Daily ROI scheduling uses a configured timezone, while ROI day eligibility and idempotency use UTC day boundaries.
+5. **Date handling:** The intended schedule is midnight UTC (`CRON_TIMEZONE=UTC`), and ROI eligibility/idempotency use UTC calendar-day boundaries. Choosing a different scheduler timezone changes the trigger time, not the ROI date boundary.
 6. **Authentication:** JWTs are returned in JSON and stored by the browser client in `localStorage`; logout clears the client token. Server-side JWT revocation/refresh-token rotation is not implemented.
 7. **Production readiness:** This is an assessment implementation. Real financial use requires independent security, compliance, accounting, operational, and load reviews, plus explicit approved product terms.
 
@@ -285,7 +285,7 @@ npm run build
 
 Backend integration tests use MongoDB and a uniquely named disposable test database. Set `TEST_MONGODB_URI` to a test cluster with permission to create and drop that database. Do not point tests at production data.
 
-The end-to-end checklist is in [`docs/END_TO_END_CHECKLIST.md`](./docs/END_TO_END_CHECKLIST.md). Previously verified in this assessment workflow: **25 backend tests passed** and the **frontend production build passed**. Re-run the commands above against the current checkout before relying on those results.
+The end-to-end checklist is in [`docs/END_TO_END_CHECKLIST.md`](./docs/END_TO_END_CHECKLIST.md). Latest verification on **2026-11-05**: **25 backend tests passed (25/25)** and the **frontend TypeScript check and production build passed**.
 
 ## Screenshots
 
