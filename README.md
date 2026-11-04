@@ -2,7 +2,31 @@
 
 A MERN investment and referral platform built for the NexaChain AI technical assessment. It includes a React investor dashboard, JWT-protected Express APIs, MongoDB/Mongoose models, transactional ROI and referral processing, and a midnight scheduler.
 
+**GitHub repository:** [Ankit24072002/investement_Platform](https://github.com/Ankit24072002/investement_Platform)
+
 > **Financial terms are configuration, not promises.** The assessment does not define investment returns or referral commission rates. The development example is for local testing only. Configure only terms approved by the business before production use.
+
+## Assessment submission deliverables
+
+| Required submission | Project location |
+| --- | --- |
+| GitHub repository link | [Ankit24072002/investement_Platform](https://github.com/Ankit24072002/investement_Platform) |
+| Database schemas | `server/src/models/` — `User.js`, `Investment.js`, `ReferralIncome.js`, `ROIHistory.js`, and `WalletTransaction.js` |
+| API source code | `server/src/routes/` and `server/src/controllers/`; request validation and auth middleware are in `server/src/middleware/` |
+| API documentation | `server/API_DOCUMENTATION.md`; Postman collection: `server/postman_collection.json` |
+| Business logic | `server/src/services/businessLogic.js` — transactional ROI credits, wallet ledger entries, referral payouts, and nested referral tree |
+| React dashboard | `client/src/pages/DashboardPage.jsx`, with reusable components in `client/src/components/dashboard/` |
+| Cron scheduler | `server/src/config/cron.js`; scheduler locking and idempotent ROI processing are in `server/src/services/businessLogic.js` |
+| README and development assumptions | This file, especially [Business configuration](#business-configuration), [Core workflows](#core-workflows), and [Security and operational notes](#security-and-operational-notes) |
+
+### Evaluation areas addressed
+
+- **Database design:** Mongoose models define the required fields, references, validation, and indexes.
+- **API architecture and security:** Express route/controller structure, JWT-protected account-scoped APIs, input validation, and role-protected admin operations.
+- **Business logic accuracy:** UTC-day ROI calculations, configurable referral payout rules, MongoDB transactions, ledger records, and idempotency safeguards.
+- **Frontend UI/UX:** Responsive dashboard, investment and earnings charts, referral tree, history tables, and loading/error/empty states.
+- **Performance and scalability:** Query indexes, pagination, bounded ROI cursor processing, and a MongoDB-backed scheduler lease.
+- **Documentation:** Setup, environment settings, API reference, development assumptions, and an end-to-end checklist.
 
 ## Features
 
